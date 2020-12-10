@@ -20,6 +20,7 @@
 typedef struct master
 {
     int semaphores[NB_SEMAPHORE];
+    const char* named_tubes[NB_NAMED_PIPES];
 } masterDonnees;
 
 
@@ -81,25 +82,38 @@ int main(int argc, char * argv[])
     // Déclaration de la structure qui stocke les données utiles au master
     masterDonnees donnes;
 
-    // Création des sémaphores
-    // Création du sémaphore entre les clients
+    // CREATIONS:
+
+    // - Création des sémaphores:
+        // Création du sémaphore entre les clients
     donnes.semaphores[SEM_CLIENTS] = creationSemaphoreClients();
-    // Création du sémaphore entre le master et un client
+        // Création du sémaphore entre le master et un client
     donnes.semaphores[SEM_MASTER_CLIENT] = creationSemaphoreMasterClient();
 
-    // - création des tubes nommés
-    // - création du premier worker
+    // - Création des tubes nommés
+        // Création du tube nommé client vers master
+    donnes.named_tubes[PIPE_CLIENT_MASTER] = createPipeClientMaster();
+        // Création du tube nommé master vers client
+    donnes.named_tubes[PIPE_MASTER_CLIENT] = createPipeMasterClient();
+
+    // Création du premier worker
 
     // boucle infinie
     loop(/* paramètres */);
 
-    // destruction des tubes nommés, des sémaphores, ...
+    // DESTRUCTIONS des tubes nommés, des sémaphores, ...
 
-    // Destruction des sémaphores
-    // Destruction du sémaphore entre les clients
+    // - Destruction des sémaphores:
+        // Destruction du sémaphore entre les clients
     detruireSemaphore(donnes.semaphores[SEM_CLIENTS]);
-    // Destruction du sémaphore entre le master et un client
+        // Destruction du sémaphore entre le master et un client
     detruireSemaphore(donnes.semaphores[SEM_MASTER_CLIENT]);
+
+    // - Destruction des tubes nommés:
+        // Destruction du tube nommé client vers master
+    destroyNamedPipe(donnes.named_tubes[PIPE_CLIENT_MASTER]);
+        // Destruction du tube nommé master vers client 
+    destroyNamedPipe(donnes.named_tubes[PIPE_MASTER_CLIENT]);
 
     return EXIT_SUCCESS;
 }

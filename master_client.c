@@ -13,17 +13,86 @@
 
 // include ajoutés
 
-#include <sys/types.h> // ftok, semget, semctl
-#include <sys/ipc.h> // ftok, semget, semctl
-#include <sys/sem.h> // semget, semctl
+#include <sys/types.h> //   Pour: ftok, semget, semctl,  => EXISTE DEJA DANS LE .h, SUPPRIMER??
+#include <sys/ipc.h> //     Pour: ftok, semget, semctl   => EXISTE DEJA DANS LE .h, SUPPRIMER??
+#include <sys/sem.h> //     Pour: semget, semctl
 
-// fonctions éventuelles proposées dans le .h
+
+// Fonctions éventuelles proposées dans le .h
+
+/***********************
+ * Pour les tubes nommés
+ ***********************/
+
+/*
+// Créé le tube nommé du client vers le master ou du master vers le client (selon le paramètre) et renvoie son nom 
+const char* createNamedPipe(int pipe_named)
+{
+    char name[];
+    
+    // Va chercher le nom du tube préétabli selon le tube nommé voulu
+    switch (pipe_named)
+    {
+    case PIPE_CLIENT_MASTER:
+        name = NAME_PIPE_CLIENT_MASTER;
+        break;
+    case PIPE_MASTER_CLIENT:
+        name = NAME_PIPE_MASTER_CLIENT;
+        break;
+    default:
+        printf("La création du tube nommé voulu ne se créera pas, veuillez créer un tube valide");
+        break;
+    }
+
+    // Crée le tube nommé et teste s'il est bien créé 
+    int pipe = creat(name,O_CREAT);
+    myassert(pipe != -1, "Le tube nommé du client vers le master s'est mal générée");
+
+    // Retourne le nom du tube s'il est bien créé
+    printf("Debug : Tube nommé Client->Master généré\n");
+    return &name;
+}
+*/
+
+// Créé le tube nommé du client vers le master et renvoie son nom 
+const char* createPipeClientMaster()
+{
+    // Crée le tube nommé et teste s'il est bien créé 
+    int pipe = mkfifo(NAME_PIPE_CLIENT_MASTER, O_EXCL | O_RDONLY);
+    myassert(pipe != -1, "Le tube nommé du client vers le master s'est mal créé");
+
+    // Retourne le nom du tube s'il est bien créé
+    printf("Debug : Tube nommé Client->Master créé\n");
+    return NAME_PIPE_CLIENT_MASTER;
+}
+
+// Créé le tube nommé du master vers le client et renvoie son nom 
+const char* createPipeMasterClient()
+{
+    // Crée le tube nommé et teste s'il est bien créé 
+    int pipe = mkfifo(NAME_PIPE_MASTER_CLIENT, O_EXCL | O_WRONLY);
+    myassert(pipe != -1, "Le tube nommé du master vers le client s'est mal créé");
+
+    // Retourne le nom du tube s'il est bien créé
+    printf("Debug : Tube nommé Master->Client créé\n");
+    return NAME_PIPE_MASTER_CLIENT;
+}
+
+// Détruit le tube nommé dont le nom est passé en paramètre
+void destroyNamedPipe(const char* name) 
+{
+    int destroy = unlink(name);
+    myassert(destroy != 1, "La destruction de tube nomée s'est mal effectué");
+
+    printf("Debug : Destruction du tube nommé : %s\n", name);
+}
+
 
 /***********************
  * Pour les sémaphores
  ***********************/
 
-// Renvoie la clé du sémaphore entre les clients si celle si s'est bien générée
+// Renvoie la clé du sémaphore entre les clients si celle-ci s'est bien générée
 key_t getKeySemaphoreClients()
 {
     // Génére la clé et test si il n'y a pas eu d'erreur
@@ -35,7 +104,7 @@ key_t getKeySemaphoreClients()
     return key;
 }
 
-// Renvoie la clé du sémaphore entre le master et un client si celle si s'est bien générée
+// Renvoie la clé du sémaphore entre le master et un client si celle-ci s'est bien générée
 key_t getKeySemaphoreMasterClient()
 {
     // Génére la clé et test si il n'y a pas eu d'erreur

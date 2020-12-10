@@ -14,13 +14,44 @@
 #define ORDER_HIGHEST_PRIME       3
 #define ORDER_COMPUTE_PRIME_LOCAL 4   // ne concerne pas le master
 
+/***********************
+ * Pour les tubes nommés
+ ***********************/
+
+#include <fcntl.h>      // Pour: O_RDONLY, O_WRONLY
+#include <unistd.h>     // Pour: unlink
+#include <sys/stat.h>   // Pour: mkfifo
+#include <string.h>
+
+// Nombres de tubes nommés utilisés
+#define NB_NAMED_PIPES 2
+// Indice du tableau de Sémaphore dans la structure du master
+#define PIPE_CLIENT_MASTER 0
+#define PIPE_MASTER_CLIENT 1
+
+// Nom de fichier choisi pour le tube nommé du client vers le master
+#define NAME_PIPE_CLIENT_MASTER "client_to_master"
+// Nom de fichier choisi pour le tube nommé du master vers le client
+#define NAME_PIPE_MASTER_CLIENT "master_to_client"
+
+//const char* createNamedPipe(int pipe_named);
+
+// Fonction qui créer les tubes nommés et qui renvoient leurs noms 
+const char* createPipeClientMaster();
+const char* createPipeMasterClient();
+
+
+// Fonction qui détruit un tube nommé dont le nom est donné en paramètre
+void destroyNamedPipe(const char* name);
+
+
 
 /***********************
  * Pour les sémaphores
  ***********************/
 
 #include <sys/types.h> // key_t
-#include <sys/ipc.h> // key_t
+#include <sys/ipc.h> // key_t 
 
 // Nombres de Sémaphores utilisé
 #define NB_SEMAPHORE 2
