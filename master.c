@@ -17,6 +17,10 @@
 
 // on peut ici définir une structure stockant tout ce dont le master
 // a besoin
+typedef struct master
+{
+    int semaphores[NB_SEMAPHORE];
+} masterDonnees;
 
 
 /************************************************************************
@@ -74,7 +78,15 @@ int main(int argc, char * argv[])
     if (argc != 1)
         usage(argv[0], NULL);
 
-    // - création des sémaphores
+    // Déclaration de la structure qui stocke les données utiles au master
+    masterDonnees donnes;
+
+    // Création des sémaphores
+    // Création du sémaphore entre les clients
+    donnes.semaphores[SEM_CLIENTS] = creationSemaphoreClients();
+    // Création du sémaphore entre le master et un client
+    donnes.semaphores[SEM_MASTER_CLIENT] = creationSemaphoreMasterClient();
+
     // - création des tubes nommés
     // - création du premier worker
 
@@ -82,6 +94,12 @@ int main(int argc, char * argv[])
     loop(/* paramètres */);
 
     // destruction des tubes nommés, des sémaphores, ...
+
+    // Destruction des sémaphores
+    // Destruction du sémaphore entre les clients
+    detruireSemaphore(donnes.semaphores[SEM_CLIENTS]);
+    // Destruction du sémaphore entre le master et un client
+    detruireSemaphore(donnes.semaphores[SEM_MASTER_CLIENT]);
 
     return EXIT_SUCCESS;
 }
