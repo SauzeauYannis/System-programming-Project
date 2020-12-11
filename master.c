@@ -101,8 +101,6 @@ int main(int argc, char * argv[])
     // boucle infinie
     loop(/* paramètres */);
 
-    // DESTRUCTIONS des tubes nommés, des sémaphores, ...
-
     // - Destruction des sémaphores:
         // Destruction du sémaphore entre les clients
     detruireSemaphore(donnes.semaphores[SEM_CLIENTS]);
@@ -117,6 +115,3 @@ int main(int argc, char * argv[])
 
     return EXIT_SUCCESS;
 }
-
-// N'hésitez pas à faire des fonctions annexes ; si les fonctions main
-// et loop pouvaient être "courtes", ce serait bien

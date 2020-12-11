@@ -18,11 +18,6 @@
  * Pour les tubes nommés
  ***********************/
 
-#include <fcntl.h>      // Pour: O_RDONLY, O_WRONLY
-#include <unistd.h>     // Pour: unlink
-#include <sys/stat.h>   // Pour: mkfifo
-#include <string.h>
-
 // Nombres de tubes nommés utilisés
 #define NB_NAMED_PIPES 2
 // Indice du tableau de Sémaphore dans la structure du master
@@ -34,16 +29,12 @@
 // Nom de fichier choisi pour le tube nommé du master vers le client
 #define NAME_PIPE_MASTER_CLIENT "master_to_client"
 
-//const char* createNamedPipe(int pipe_named);
-
 // Fonction qui créer les tubes nommés et qui renvoient leurs noms 
 const char* createPipeClientMaster();
 const char* createPipeMasterClient();
 
-
 // Fonction qui détruit un tube nommé dont le nom est donné en paramètre
 void destroyNamedPipe(const char* name);
-
 
 
 /***********************
@@ -88,9 +79,5 @@ int getIdSemaphoreMasterClient();
 
 // Détruit le sémaphore dont l'identifiant a été passé en paramètre
 void detruireSemaphore(int semId);
-
-// bref n'hésitez à mettre nombre de fonctions avec des noms explicites
-// pour masquer l'implémentation
-
 
 #endif
