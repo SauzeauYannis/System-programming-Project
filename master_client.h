@@ -29,13 +29,36 @@
 // Nom de fichier choisi pour le tube nommé du master vers le client
 #define NAME_PIPE_MASTER_CLIENT "master_to_client"
 
-// Fonction qui créer les tubes nommés et qui renvoient leurs noms 
+// Fonctions qui créer les tubes nommés et qui renvoient leurs noms 
 const char* createPipeClientMaster();
 const char* createPipeMasterClient();
+
+// Ouverture du tube en paramètre en mode lecture
+int openPipeInReading(const char* pipe);
+// Ouverture du tube en paramètre en mode écriture
+int openPipeInWriting(const char* pipe);
+
+// Fermeture du tube en paramètre
+void closePipe(int fd);
 
 // Fonction qui détruit un tube nommé dont le nom est donné en paramètre
 void destroyNamedPipe(const char* name);
 
+// Fonctions pour le tube nommé du client vers le master
+// Le client envoie l'ordre au master
+void clientSendsOrderToMaster(int fd, int order);
+// Le client envoie le nombre premier a traité au master
+// void clientSendsPrimeToMaster(int fd, int prime);
+// Le master recoit l'ordre du client
+int masterReceiveOrderToClient(int fd);
+// Le master recoit le nombre premier du client
+// int masterReceivePrimeToClient(int fd);
+
+// Fonctions pour le tube nommé du master vers le client
+// Le master envoie au client combien de nombre premier ont été calculés
+void masterSendsHowManyToClient(int fd, int how_many);
+// Le client envoie au master combien de nombre premier ont été calculés
+int clientReceiveHowManyToMaster(int fd);
 
 /***********************
  * Pour les sémaphores

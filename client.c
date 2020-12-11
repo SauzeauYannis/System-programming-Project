@@ -85,7 +85,6 @@ int main(int argc, char * argv[])
 {
     int number = 0;
     int order = parseArgs(argc, argv, &number);
-    printf("%d\n", order); // pour éviter le warning
 
     // order peut valoir 5 valeurs (cf. master_client.h) :
     //      - ORDER_COMPUTE_PRIME_LOCAL
@@ -114,6 +113,58 @@ int main(int argc, char * argv[])
     //
     // N'hésitez pas à faire des fonctions annexes ; si la fonction main
     // ne dépassait pas une trentaine de lignes, ce serait bien.
+
+    if (order == ORDER_COMPUTE_PRIME_LOCAL)
+    {
+        printf("Debug : ORDER_COMPUTE_PRIME_LOCAL\n");
+    }
+    else
+    {
+        printf("TODO : entrer en section critique\n");
+
+        // Ouverture des tubes
+        // Ouverture du tube nommé client vers master en écriture
+        int fd_client_master = openPipeInWriting(NAME_PIPE_CLIENT_MASTER);
+        // Ouverture du tube nommé master vers client en lecture
+        int fd_master_client = openPipeInReading(NAME_PIPE_MASTER_CLIENT);
+
+        // Envoie de l'ordre sur le tube nommé client vers master
+        clientSendsOrderToMaster(fd_client_master, order);
+
+        // Si le client doit transmettre le nombre premier à calculer
+        if (order == ORDER_COMPUTE_PRIME)
+        {
+            // clientSendsPrimeToMaster(fd_client_master, number);
+        }
+        else if (order == ORDER_HOW_MANY_PRIME)
+        {
+            int how_many = clientReceiveHowManyToMaster(fd_master_client);
+            printf("Il y a %d nombres premiers calculés\n", how_many);
+        }
+        else if (order == ORDER_HIGHEST_PRIME)
+        {
+            /* code */
+        }
+        else if (order == ORDER_STOP)
+        {
+            /* code */
+        }
+        else // Ne doit normalement jamais aller ici sinon il y a une erreur dans le programme
+        {
+            fprintf(stderr, "L'ordre du client est inconnu");
+            return EXIT_FAILURE;
+        }
+
+        printf("TODO : sortir de la section critique\n");
+
+        // Fermeture des tubes
+        // Fermeture du tube nommé client vers master
+        closePipe(fd_client_master);
+        // Fermeture du tube nommé master vers client
+        closePipe(fd_master_client);
+
+        printf("TODO : débloquer le master grâce à un second sémaphore\n");
+    }
     
     return EXIT_SUCCESS;
 }
