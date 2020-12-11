@@ -25,40 +25,51 @@
 #define PIPE_MASTER_CLIENT 1
 
 // Nom de fichier choisi pour le tube nommé du client vers le master
-#define NAME_PIPE_CLIENT_MASTER "client_to_master"
+#define NAMED_PIPE_CLIENT_MASTER "client_to_master"
 // Nom de fichier choisi pour le tube nommé du master vers le client
-#define NAME_PIPE_MASTER_CLIENT "master_to_client"
+#define NAMED_PIPE_MASTER_CLIENT "master_to_client"
 
-// Fonctions qui créer les tubes nommés et qui renvoient leurs noms 
+// Fonctions qui créer les tubes nommés et qui renvoient leurs noms :
 const char* createPipeClientMaster();
 const char* createPipeMasterClient();
 
-// Ouverture du tube en paramètre en mode lecture
+// Fonctions qui ouvrent, en ecritue ou en lecture seul, un tube nommé passé en paramètre
 int openPipeInReading(const char* pipe);
-// Ouverture du tube en paramètre en mode écriture
 int openPipeInWriting(const char* pipe);
 
-// Fermeture du tube en paramètre
+// Fonction qui ferme un tube passé en paramètre
 void closePipe(int fd);
 
 // Fonction qui détruit un tube nommé dont le nom est donné en paramètre
 void destroyNamedPipe(const char* name);
 
-// Fonctions pour le tube nommé du client vers le master
-// Le client envoie l'ordre au master
+// Fonctions qui utilisent les tubes:
+
+// Envoie d'ordre:
+    // Le client envoie l'ordre au master
 void clientSendsOrderToMaster(int fd, int order);
+    // Le master recoit l'ordre du client
+int masterReceiveOrderToClient(int fd);
+
+// Retour de l'ordre "HOW_MANY_PRIME":
+    // Le master envoie au client combien de nombre premier ont été calculés
+void masterHowMany(int fd, int how_many);
+    // Le client reçoit du master combien de nombre premier ont été calculés
+int clientHowMany(int fd);
+
+// Retour de l'ordre "HIGHEST_PRIME":
+    // Le master envoie au client le nombre premier le plus grand qui ait été calculé
+void masterHighestPrime(int fd, int highest_prime);
+    // Le client reçoit du master le plus grand nombre premier qui ait été calculé
+int clientHighestPrime(int fd);
+
 // Le client envoie le nombre premier a traité au master
 // void clientSendsPrimeToMaster(int fd, int prime);
-// Le master recoit l'ordre du client
-int masterReceiveOrderToClient(int fd);
+
 // Le master recoit le nombre premier du client
 // int masterReceivePrimeToClient(int fd);
 
-// Fonctions pour le tube nommé du master vers le client
-// Le master envoie au client combien de nombre premier ont été calculés
-void masterSendsHowManyToClient(int fd, int how_many);
-// Le client envoie au master combien de nombre premier ont été calculés
-int clientReceiveHowManyToMaster(int fd);
+
 
 /***********************
  * Pour les sémaphores

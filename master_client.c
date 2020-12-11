@@ -23,33 +23,41 @@
 
 // Fonctions éventuelles proposées dans le .h
 
-/***********************
- * Pour les tubes nommés
- ***********************/
+/**********************************************
+            Pour les tubes nommés
+ **********************************************/
+
+
+//============ MANIPULATIONS DE TUBES NOMMES ============
+
+// **** CREATION ****
 
 // Créé le tube nommé du client vers le master et renvoie son nom 
 const char* createPipeClientMaster()
 {
     // Crée le tube nommé en lecture/ecriture et teste s'il est bien créé 
-    int pipe = mkfifo(NAME_PIPE_CLIENT_MASTER, 0641);
+    int pipe = mkfifo(NAMED_PIPE_CLIENT_MASTER, 0641);
     myassert(pipe != -1, "Le tube nommé du client vers le master s'est mal créé");
 
     // Retourne le nom du tube s'il est bien créé
     printf("Debug : Tube nommé Client->Master créé\n");
-    return NAME_PIPE_CLIENT_MASTER;
+    return NAMED_PIPE_CLIENT_MASTER;
 }
+//-------------------------------------------------------------------------------------
 
 // Créé le tube nommé du master vers le client et renvoie son nom 
 const char* createPipeMasterClient()
 {
     // Crée le tube nommé en lecture/ecriture et teste s'il est bien créé 
-    int pipe = mkfifo(NAME_PIPE_MASTER_CLIENT, 0641);
+    int pipe = mkfifo(NAMED_PIPE_MASTER_CLIENT, 0641);
     myassert(pipe != -1, "Le tube nommé du master vers le client s'est mal créé");
 
     // Retourne le nom du tube s'il est bien créé
     printf("Debug : Tube nommé Master->Client créé\n");
-    return NAME_PIPE_MASTER_CLIENT;
+    return NAMED_PIPE_MASTER_CLIENT;
 }
+
+// **** OUVERTURE ****
 
 // Ouverture du tube en paramètre en mode lecture
 int openPipeInReading(const char* pipe)
@@ -62,6 +70,7 @@ int openPipeInReading(const char* pipe)
     printf("Debug : Tube nommé %s ouvert en lecture avec %d pour fd\n", pipe, fd);
     return fd;
 }
+//-------------------------------------------------------------------------------------
 
 // Ouverture du tube en paramètre en mode écriture
 int openPipeInWriting(const char* pipe)
@@ -75,6 +84,8 @@ int openPipeInWriting(const char* pipe)
     return fd;
 }
 
+// **** FERMETURE **** 
+
 // Fermeture du tube en paramètre
 void closePipe(int fd)
 {
@@ -84,6 +95,8 @@ void closePipe(int fd)
 
     printf("Debug : Fermeture du Tube nommé qui a pour %d pour fd\n", fd);
 }
+
+// **** DESTRUCTION ****
 
 // Détruit le tube nommé dont le nom est passé en paramètre
 void destroyNamedPipe(const char* name) 
@@ -95,6 +108,13 @@ void destroyNamedPipe(const char* name)
     printf("Debug : Destruction du tube nommé : %s\n", name);
 }
 
+
+
+//============ UTILISATION DE TUBES NOMMES ============
+
+
+// **** ENVOI : ORDRE ****
+
 // Le client envoie l'ordre au master
 void clientSendsOrderToMaster(int fd, int order)
 {
@@ -104,14 +124,7 @@ void clientSendsOrderToMaster(int fd, int order)
 
     printf("Debug : Envoie de l'ordre %d au master\n", order);
 }
-
-// Le client envoie le nombre premier a traité au master
-// void clientSendsPrimeToMaster(int fd, int prime)
-// {
-//     // TODO : faire cette fonction pour quand l'odre
-//     // est égale à ORDER_COMPUTE_PRIME et qu'il faut
-//     // envoyé le nombre premier
-// }
+//-------------------------------------------------------------------------------------
 
 // Le master recoit l'ordre du client
 int masterReceiveOrderToClient(int fd)
@@ -125,26 +138,21 @@ int masterReceiveOrderToClient(int fd)
     return order;
 }
 
-// Le master recoit le nombre premier du client
-// int masterReceivePrimeToClient(int fd)
-// {
-//     // TODO : faire cette fonction pour quand l'odre
-//     // est égale à ORDER_COMPUTE_PRIME et qu'il faut
-//     // recevoir le nombre premier
-// }
+// **** RETOUR : ORDER_HOW_MANY_PRIME ****
 
 // Le master envoie au client combien de nombre premier ont été calculés
-void masterSendsHowManyToClient(int fd, int how_many)
+void masterHowMany(int fd, int how_many)
 {
     // Envoie le nombre de caclul effectué
     int ret = write(fd, &how_many, sizeof(int));
-    myassert(ret != -1, "L'envoie du nombre de caclul effectué au client ne s'est pas bien déroulé");
+    myassert(ret != -1, "L'envoi du nombre de caclul effectué au client ne s'est pas bien déroulé");
 
     printf("Debug : Envoie du nombre de caclul effectuée %d au client\n", how_many);
 }
+//-------------------------------------------------------------------------------------
 
-// Le client envoie au master combien de nombre premier ont été calculés
-int clientReceiveHowManyToMaster(int fd)
+// Le client reçoit du master combien de nombre premier ont été calculés
+int clientHowMany(int fd)
 {
     // Lecture du nombre de caclul effectué envoyé par le master pour le client et teste si ce c'est bien effectué
     int how_many;
@@ -155,9 +163,55 @@ int clientReceiveHowManyToMaster(int fd)
     return how_many;
 }
 
-/***********************
- * Pour les sémaphores
- ***********************/
+// **** RETOUR : ORDER_HIGHEST_PRIME ****
+
+// Le master envoie au client le plus grand nombre premier qui ait été calculé
+void masterHighestPrime(int fd, int highest_prime)
+{
+    // Envoie le nombre de caclul effectué
+    int ret = write(fd, &highest_prime, sizeof(int));
+    myassert(ret != -1, "L'envoi du plus grand nombre premier au client ne s'est pas bien déroulé");
+
+    printf("Debug : Pipe: Master->Client ENVOI | Highest_prime : %d\n", highest_prime);
+}
+//-------------------------------------------------------------------------------------
+
+// Le client reçoit du master le plus grand nombre premier qui ait été calculé
+int clientHighestPrime(int fd)
+{
+    // Lecture du nombre de caclul effectué envoyé par le master pour le client et teste si ce c'est bien effectué
+    int highest_prime;
+    int ret = read(fd, &highest_prime, sizeof(int));
+    myassert(ret != -1, "La lecture du plus grand nombre premier du master par le client a échoué");
+
+    printf("Debug : Pipe : Master->Client RECEP | Highest_prime : %d\n", highest_prime);
+    return highest_prime;
+}
+
+// **** RETOUR : ORDER_COMPUTE_PRIME ****
+
+
+// Le client envoie le nombre premier a traité au master
+// void clientSendsPrimeToMaster(int fd, int prime)
+// {
+//     // TODO : faire cette fonction pour quand l'odre
+//     // est égale à ORDER_COMPUTE_PRIME et qu'il faut
+//     // envoyé le nombre premier
+// }
+//-------------------------------------------------------------------------------------
+
+// Le master recoit le nombre premier du client
+// int masterReceivePrimeToClient(int fd)
+// {
+//     // TODO : faire cette fonction pour quand l'odre
+//     // est égale à ORDER_COMPUTE_PRIME et qu'il faut
+//     // recevoir le nombre premier
+// }
+
+
+/**********************************************
+            Pour les sémaphores
+ **********************************************/
 
 // Renvoie la clé du sémaphore entre les clients si celle-ci s'est bien générée
 key_t getKeySemaphoreClients()

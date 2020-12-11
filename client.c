@@ -124,9 +124,9 @@ int main(int argc, char * argv[])
 
         // Ouverture des tubes
         // Ouverture du tube nommé client vers master en écriture
-        int fd_client_master = openPipeInWriting(NAME_PIPE_CLIENT_MASTER);
+        int fd_client_master = openPipeInWriting(NAMED_PIPE_CLIENT_MASTER);
         // Ouverture du tube nommé master vers client en lecture
-        int fd_master_client = openPipeInReading(NAME_PIPE_MASTER_CLIENT);
+        int fd_master_client = openPipeInReading(NAMED_PIPE_MASTER_CLIENT);
 
         // Envoie de l'ordre sur le tube nommé client vers master
         clientSendsOrderToMaster(fd_client_master, order);
@@ -138,12 +138,13 @@ int main(int argc, char * argv[])
         }
         else if (order == ORDER_HOW_MANY_PRIME)
         {
-            int how_many = clientReceiveHowManyToMaster(fd_master_client);
+            int how_many = clientHowMany(fd_master_client);
             printf("Il y a %d nombres premiers calculés\n", how_many);
         }
         else if (order == ORDER_HIGHEST_PRIME)
         {
-            /* code */
+            int highest_prime = clientHighestPrime(fd_master_client);
+            printf("Le plus grand nombre premier calculé est %d", highest_prime);
         }
         else if (order == ORDER_STOP)
         {

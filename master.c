@@ -23,6 +23,7 @@ typedef struct master
     const char* named_tubes[NB_NAMED_PIPES];
     int how_many;
     int highest;
+    bool is_prime;
 } masterDonnees;
 
 
@@ -73,11 +74,13 @@ void loop(masterDonnees donnees)
     // boucle infinie
     while (true)
     {
-        // Ouverture des tubes
-        // Ouverture du tube nommé client vers master en lecture
+        // Ouverture des tubes:
+            // Ouverture du tube nommé client vers master en lecture
         int fd_client_master = openPipeInReading(donnees.named_tubes[PIPE_CLIENT_MASTER]);
-        // Ouverture du tube nommé master vers client en écriture
+            // Ouverture du tube nommé master vers client en écriture
         int fd_master_client = openPipeInWriting(donnees.named_tubes[PIPE_MASTER_CLIENT]);
+
+        printf("MASTER : En attente d'une instruction d'un client...\n");
 
         // Le master recoit l'ordre donné par le client
         int order = masterReceiveOrderToClient(fd_client_master);
@@ -88,11 +91,11 @@ void loop(masterDonnees donnees)
         }
         else if (order == ORDER_HOW_MANY_PRIME)
         {
-            masterSendsHowManyToClient(fd_master_client, donnees.how_many);
+            masterHowMany(fd_master_client, donnees.how_many);
         }
         else if (order == ORDER_HIGHEST_PRIME)
         {
-            /* code */
+            masterHighestPrime(fd_master_client, donnees.highest);
         }
         else if (order == ORDER_STOP)
         {
@@ -100,7 +103,7 @@ void loop(masterDonnees donnees)
         }
         else // Ne doit normalement jamais aller ici sinon il y a une erreur dans le programme
         {
-            fprintf(stderr, "L'ordre du client recu par le master est inconnu");
+            printf(stderr, "L'ordre du client recu par le master est inconnu");
             break;
         }
 
