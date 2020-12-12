@@ -116,20 +116,23 @@ int main(int argc, char * argv[])
 
     if (order == ORDER_COMPUTE_PRIME_LOCAL)
     {
-        printf("Debug : ORDER_COMPUTE_PRIME_LOCAL\n");
+        printf("TODO : ORDER_COMPUTE_PRIME_LOCAL\n");
     }
     else
     {
-        printf("TODO : entrer en section critique\n");
+        // On prend le sémaphore qui gére les relations entre les clients
+        int semIdClients = getIdSemaphoreClients();
+        // On diminue ce sémaphore pour passer en section critique
+        diminueSemaphore(semIdClients);
 
         // Ouverture des tubes
         // Ouverture du tube nommé client vers master en écriture
-        int fd_client_master = openPipeInWriting(NAMED_PIPE_CLIENT_MASTER);
+        int fd_client_master = openNamedPipeInWriting(NAMED_PIPE_CLIENT_MASTER);
         // Ouverture du tube nommé master vers client en lecture
-        int fd_master_client = openPipeInReading(NAMED_PIPE_MASTER_CLIENT);
+        int fd_master_client = openNamedPipeInReading(NAMED_PIPE_MASTER_CLIENT);
 
         // Envoie de l'ordre sur le tube nommé client vers master
-        clientSendsOrderToMaster(fd_client_master, order);
+        clientOrderMaster(fd_client_master, order);
 
         // Si le client doit transmettre le nombre premier à calculer
         if (order == ORDER_COMPUTE_PRIME)
@@ -138,13 +141,11 @@ int main(int argc, char * argv[])
         }
         else if (order == ORDER_HOW_MANY_PRIME)
         {
-            int how_many = clientHowMany(fd_master_client);
-            printf("Il y a %d nombres premiers calculés\n", how_many);
+            clientHowMany(fd_master_client);
         }
         else if (order == ORDER_HIGHEST_PRIME)
         {
-            int highest_prime = clientHighestPrime(fd_master_client);
-            printf("Le plus grand nombre premier calculé est %d", highest_prime);
+            clientHighestPrime(fd_master_client);
         }
         else if (order == ORDER_STOP)
         {
@@ -152,19 +153,23 @@ int main(int argc, char * argv[])
         }
         else // Ne doit normalement jamais aller ici sinon il y a une erreur dans le programme
         {
-            fprintf(stderr, "L'ordre du client est inconnu");
+            fprintf(stderr, "L'ordre du client est inconnu\n");
             return EXIT_FAILURE;
         }
 
-        printf("TODO : sortir de la section critique\n");
+        // On augmente le sémaphore entre les clients pour sortir de la section critique
+        augmenteSemaphore(semIdClients);
 
         // Fermeture des tubes
         // Fermeture du tube nommé client vers master
-        closePipe(fd_client_master);
+        closeNamedPipe(fd_client_master);
         // Fermeture du tube nommé master vers client
-        closePipe(fd_master_client);
+        closeNamedPipe(fd_master_client);
 
-        printf("TODO : débloquer le master grâce à un second sémaphore\n");
+        // On prend le sémaphore qui gére les relations entre le master et un client
+        int semIdMasterClient = getIdSemaphoreMasterClient();
+        // On augmente ce sémaphore pour débloquer le master
+        augmenteSemaphore(semIdMasterClient);
     }
     
     return EXIT_SUCCESS;

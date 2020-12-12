@@ -76,14 +76,14 @@ void loop(masterDonnees donnees)
     {
         // Ouverture des tubes:
             // Ouverture du tube nommé client vers master en lecture
-        int fd_client_master = openPipeInReading(donnees.named_tubes[PIPE_CLIENT_MASTER]);
+        int fd_client_master = openNamedPipeInReading(donnees.named_tubes[PIPE_CLIENT_MASTER]);
             // Ouverture du tube nommé master vers client en écriture
-        int fd_master_client = openPipeInWriting(donnees.named_tubes[PIPE_MASTER_CLIENT]);
+        int fd_master_client = openNamedPipeInWriting(donnees.named_tubes[PIPE_MASTER_CLIENT]);
 
         printf("MASTER : En attente d'une instruction d'un client...\n");
 
         // Le master recoit l'ordre donné par le client
-        int order = masterReceiveOrderToClient(fd_client_master);
+        int order = masterOrderClient(fd_client_master);
 
         if (order == ORDER_COMPUTE_PRIME)
         {
@@ -96,6 +96,7 @@ void loop(masterDonnees donnees)
         else if (order == ORDER_HIGHEST_PRIME)
         {
             masterHighestPrime(fd_master_client, donnees.highest);
+            break;
         }
         else if (order == ORDER_STOP)
         {
@@ -103,17 +104,18 @@ void loop(masterDonnees donnees)
         }
         else // Ne doit normalement jamais aller ici sinon il y a une erreur dans le programme
         {
-            printf(stderr, "L'ordre du client recu par le master est inconnu");
+            fprintf(stderr, "L'ordre du client recu par le master est inconnu\n");
             break;
         }
 
         // Fermeture des tubes
-        // Fermeture du tube nommé client vers master
-        closePipe(fd_client_master);
-        // Fermeture du tube nommé master vers client
-        closePipe(fd_master_client);
+            // Fermeture du tube nommé client vers master
+        closeNamedPipe(fd_client_master);
+            // Fermeture du tube nommé master vers client
+        closeNamedPipe(fd_master_client);
 
-        break; // Pour sortir de la boucle infine
+        // On diminue le sémaphore entre le master et le client pour attendre la fin du client
+        diminueSemaphore(donnees.semaphores[SEM_MASTER_CLIENT]);
     }
 }
 
