@@ -86,34 +86,6 @@ int main(int argc, char * argv[])
     int number = 0;
     int order = parseArgs(argc, argv, &number);
 
-    // order peut valoir 5 valeurs (cf. master_client.h) :
-    //      - ORDER_COMPUTE_PRIME_LOCAL
-    //      - ORDER_STOP
-    //      - ORDER_COMPUTE_PRIME
-    //      - ORDER_HOW_MANY_PRIME
-    //      - ORDER_HIGHEST_PRIME
-    //
-    // si c'est ORDER_COMPUTE_PRIME_LOCAL
-    //    alors c'est un code complètement à part multi-thread
-    // sinon
-    //    - entrer en section critique :
-    //           . pour empêcher que 2 clients communiquent simultanément
-    //           . le mutex est déjà créé par le master
-    //    - ouvrir les tubes nommés (ils sont déjà créés par le master)
-    //           . les ouvertures sont bloquantes, il faut s'assurer que
-    //             le master ouvre les tubes dans le même ordre
-    //    - envoyer l'ordre et les données éventuelles au master
-    //    - attendre la réponse sur le second tube
-    //    - sortir de la section critique
-    //    - libérer les ressources (fermeture des tubes, ...)
-    //    - débloquer le master grâce à un second sémaphore (cf. ci-dessous)
-    // 
-    // Une fois que le master a envoyé la réponse au client, il se bloque
-    // sur un sémaphore ; le dernier point permet donc au master de continuer
-    //
-    // N'hésitez pas à faire des fonctions annexes ; si la fonction main
-    // ne dépassait pas une trentaine de lignes, ce serait bien.
-
     if (order == ORDER_COMPUTE_PRIME_LOCAL)
     {
         printf("TODO : ORDER_COMPUTE_PRIME_LOCAL\n");
@@ -137,20 +109,15 @@ int main(int argc, char * argv[])
         // Si le client doit transmettre le nombre premier à calculer
         if (order == ORDER_COMPUTE_PRIME)
         {
-            // clientSendsPrimeToMaster(fd_client_master, number);
+            clientCompute(fd_client_master, number);
+            clientPrime(fd_master_client, number);
         }
         else if (order == ORDER_HOW_MANY_PRIME)
-        {
             clientHowMany(fd_master_client);
-        }
         else if (order == ORDER_HIGHEST_PRIME)
-        {
             clientHighestPrime(fd_master_client);
-        }
         else if (order == ORDER_STOP)
-        {
-            /* code */
-        }
+            clientStop(fd_master_client);
         else // Ne doit normalement jamais aller ici sinon il y a une erreur dans le programme
         {
             fprintf(stderr, "L'ordre du client est inconnu\n");

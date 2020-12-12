@@ -44,17 +44,13 @@ const char* createNamedPipe(const char* pipePathName)
 // Créé le tube nommé du client vers le master et renvoie son nom 
 const char* createPipeClientMaster()
 {
-    const char* pipePathName = createNamedPipe(NAMED_PIPE_CLIENT_MASTER);
-    printf("Debug : Tube nommé Client->Master créé avec %s comme nom\n", pipePathName);
-    return pipePathName;
+    return createNamedPipe(NAMED_PIPE_CLIENT_MASTER);
 }
 
 // Créé le tube nommé du master vers le client et renvoie son nom 
 const char* createPipeMasterClient()
 {
-    const char* pipePathName = createNamedPipe(NAMED_PIPE_MASTER_CLIENT);
-    printf("Debug : Tube nommé Master->Client créé avec %s comme nom\n", pipePathName);
-    return pipePathName;
+    return createNamedPipe(NAMED_PIPE_MASTER_CLIENT);
 }
 
 // **** OUVERTURE ****
@@ -67,7 +63,6 @@ int openNamedPipeInReading(const char* pipe)
     myassert(fd != -1, "L'ouverture du tube en lecture s'est mal exécutée");
 
     // Retourne le file descriptor
-    printf("Debug : Tube nommé %s ouvert en lecture avec %d pour fd\n", pipe, fd);
     return fd;
 }
 //-------------------------------------------------------------------------------------
@@ -80,7 +75,6 @@ int openNamedPipeInWriting(const char* pipe)
     myassert(fd != -1, "L'ouverture du tube en écriture s'est mal exécutée");
 
     // Retourne le file descriptor
-    printf("Debug : Tube nommé %s ouvert en écriture avec %d pour fd\n", pipe, fd);
     return fd;
 }
 
@@ -92,8 +86,6 @@ void closeNamedPipe(int fd)
     // Ferme le tube et teste s'il a bien été fermé
     int ret = close(fd);
     myassert(ret != -1, "La fermeture du tube a échoué");
-
-    printf("Debug : Fermeture du Tube nommé qui a pour %d pour fd\n", fd);
 }
 
 // **** DESTRUCTION ****
@@ -104,8 +96,6 @@ void destroyNamedPipe(const char* name)
     // Détruit le tube et teste s'il a bien été détruit
     int destroy = unlink(name);
     myassert(destroy != 1, "La destruction de tube nomée s'est mal effectué");
-
-    printf("Debug : Destruction du tube nommé : %s\n", name);
 }
 
 //============ UTILISATION DE TUBES NOMMES ============
@@ -137,16 +127,12 @@ int receiveData(int fd)
 void clientOrderMaster(int fd, int order)
 {
     sentData(fd, order);
-    printf("Debug : Envoie de l'ordre %d au master\n", order);
 }
 
 // Le master recoit l'ordre du client
 int masterOrderClient(int fd)
 {
-    int order = receiveData(fd);
-
-    printf("Debug : Le master vient de recevoir l'odre %d du client\n", order);
-    return order;
+    return receiveData(fd);
 }
 
 // **** Master->Client : ORDER_HOW_MANY_PRIME ****
@@ -155,9 +141,7 @@ int masterOrderClient(int fd)
 void masterHowMany(int fd, int how_many)
 {
     sentData(fd, how_many);
-    printf("Debug : Envoie du nombre de caclul effectuée %d au client\n", how_many);
 }
-//-------------------------------------------------------------------------------------
 
 // Le client reçoit du master combien de nombre premier ont été calculés
 void clientHowMany(int fd)
@@ -172,9 +156,7 @@ void clientHowMany(int fd)
 void masterHighestPrime(int fd, int highest_prime)
 {
     sentData(fd, highest_prime);
-    printf("Debug : Envoie du plus grand nombre premier %d au client\n", highest_prime);
 }
-//-------------------------------------------------------------------------------------
 
 // Le client reçoit du master le plus grand nombre premier qui ait été calculé
 void clientHighestPrime(int fd)
@@ -183,26 +165,54 @@ void clientHighestPrime(int fd)
     printf("Le plus grand nombre premier calculé est %d\n", highest_prime);
 }
 
-// **** RETOUR : ORDER_COMPUTE_PRIME ****
+// **** Master->Client : ORDER_STOP ****
 
+// Le master envoie un accusé de reception au client
+void masterStop(int fd, int confirm_receipt)
+{
+    sentData(fd, confirm_receipt);
+}
 
-// Le client envoie le nombre premier a traité au master
-// void clientSendsPrimeToMaster(int fd, int prime)
-// {
-//     // TODO : faire cette fonction pour quand l'odre
-//     // est égale à ORDER_COMPUTE_PRIME et qu'il faut
-//     // envoyé le nombre premier
-// }
-//-------------------------------------------------------------------------------------
+// Le client reçoit du master un accusé de reception
+void clientStop(int fd)
+{
+    int confirm_receipt = receiveData(fd);
+    printf("L'accusé de reception %d de l'arrêt du master a bien été reçu\n", confirm_receipt);
+}
 
-// Le master recoit le nombre premier du client
-// int masterReceivePrimeToClient(int fd)
-// {
-//     // TODO : faire cette fonction pour quand l'odre
-//     // est égale à ORDER_COMPUTE_PRIME et qu'il faut
-//     // recevoir le nombre premier
-// }
+// **** Client->Master : ORDER_COMPUTE_PRIME ****
 
+// Le client envoie au master le nombre premier qu'il doit tester
+void clientCompute(int fd, int compute_prime)
+{
+    sentData(fd, compute_prime);
+}
+
+// Le master recoit le nombre premier qu'il doit tester
+int masterCompute(int fd)
+{
+    return receiveData(fd);
+}
+
+// **** Master->Client : ORDER_COMPUTE_PRIME ****
+
+// Le master envoie au client si le nombre est premier ou pas
+void masterPrime(int fd, int is_prime)
+{
+    sentData(fd, is_prime);
+}
+
+// Le client recoit la réponse si le nombre est premier ou pas
+void clientPrime(int fd, int number_tested)
+{
+    int is_prime = receiveData(fd);
+    if (is_prime == NUMBER_IS_PRIME)
+        printf("Le nombre %d est premier\n", number_tested);
+    else if (is_prime == NUMBER_NOT_PRIME)
+        printf("Le nombre %d n'est pas premier\n", number_tested);
+    else // Ne devrait jamais venir ici sinon bug en amont
+        fprintf(stderr, "Le nombre %d n'a pas réussi à être testé\n", number_tested);
+}
 
 
 /**********************************************
@@ -228,17 +238,13 @@ key_t getKeySemaphore(int semIdNum)
 // Renvoie la clé du sémaphore entre les clients si celle-ci s'est bien générée
 key_t getKeySemaphoreClients()
 {
-    key_t key = getKeySemaphore(SEM_ID_CLIENTS);
-    printf("Debug : Clé %d du sémaphore entre les clients\n", key);
-    return key;
+    return getKeySemaphore(SEM_ID_CLIENTS);
 }
 
 // Renvoie la clé du sémaphore entre le master et un client si celle-ci s'est bien générée
 key_t getKeySemaphoreMasterClient()
 {
-    key_t key = getKeySemaphore(SEM_ID_MASTER_CLIENT);
-    printf("Debug : Clé %d du sémaphore entre le master et un client générée\n", key);
-    return key;
+    return getKeySemaphore(SEM_ID_MASTER_CLIENT);
 }
 
 // **** CREATION ****
@@ -258,20 +264,16 @@ int creationSemaphore(key_t key, int semValInit)
 }
 //-------------------------------------------------------------------------------------
 
-// Renvoie l'identifiant du sémaphore entre les clients qui vient d'être créé et initialisé
+// Créé le sémaphore entre les clients et l'initialise à 1
 int creationSemaphoreClients()
 {
-    int semId = creationSemaphore(getKeySemaphoreClients(), 1);
-    printf("Debug : Création et initialisation du sémaphore entre les clients d'id %d\n", semId);
-    return semId;
+    return creationSemaphore(getKeySemaphoreClients(), 1);
 }
 
-// Renvoie l'identifiant du sémaphore entre le master et un client qui vient d'être créé et initialisé
+// Créé le sémaphore entre le master un client et l'initialise à 0
 int creationSemaphoreMasterClient()
 {
-    int semId = creationSemaphore(getKeySemaphoreMasterClient(), 0);
-    printf("Debug : Création et initialisation du sémaphore entre le master et un client d'id %d\n", semId);
-    return semId;
+    return creationSemaphore(getKeySemaphoreMasterClient(), 0);
 }
 
 // **** RECUPERATION ****
@@ -291,17 +293,13 @@ int getIdSemaphore(key_t key)
 // Renvoie l'identifiant du sémaphore entre les clients qui a déjà était créé et initialisé
 int getIdSemaphoreClients()
 {
-    int semId = getIdSemaphore(getKeySemaphoreClients());
-    printf("Debug : Récupération du sémaphore entre les clients d'id %d\n", semId);
-    return semId;
+    return getIdSemaphore(getKeySemaphoreClients());
 }
 
 // Renvoie l'identifiant du sémaphore entre le master et un client qui a déjà était créé
 int getIdSemaphoreMasterClient()
 {
-    int semId = getIdSemaphore(getKeySemaphoreMasterClient());
-    printf("Debug : Récupération du sémaphore entre le master et un client d'id %d\n", semId);
-    return semId;
+    return getIdSemaphore(getKeySemaphoreMasterClient());
 }
 
 // **** DESTRUCTION ****
@@ -312,7 +310,6 @@ void detruireSemaphore(int semId)
     // Détruit le sémaphore et vérifie qu'aucun problème ne s'est passé
     int ret = semctl(semId, -1, IPC_RMID);
     myassert(ret != -1, "Le sémaphore ne s'est pas correctement détruit");
-    printf("Debug : Destruction du Sem qui a pour id : %d\n", semId);
 }
 
 //============ UTILISATION DES SEMAPHORES ============
@@ -330,12 +327,10 @@ void operationSemaphore(int semId, int operation)
 void augmenteSemaphore(int semId)
 {
     operationSemaphore(semId, SEM_OP_INC);
-    printf("Debug : Augmentation du Sem qui a pour id : %d\n", semId);
 }
 
 // Diminue le sémpahore dont l'id est passé en paramètre
 void diminueSemaphore(int semId)
 {
     operationSemaphore(semId, SEM_OP_DEC);
-    printf("Debug : Diminution du Sem qui a pour id : %d\n", semId);
 }

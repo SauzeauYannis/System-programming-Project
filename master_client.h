@@ -35,6 +35,12 @@
     // Nom du tube nommé du master vers le client
 #define NAMED_PIPE_MASTER_CLIENT "master_to_client"
 
+// Pour savoir si un nombre est premier
+    // Le nombre n'est pas premier
+#define NUMBER_NOT_PRIME 0
+    // Le nombre est premier
+#define NUMBER_IS_PRIME 1
+
 /****** Fonctions *******/
 
 // Fonctions qui créer les tubes nommés et qui renvoient leurs noms :
@@ -64,6 +70,15 @@ void clientHowMany(int fd);
 // Envoie du plus grand nombre premier au client qui le réceptionne
 void masterHighestPrime(int fd, int highest_prime);
 void clientHighestPrime(int fd);
+// Envoie de l'accusé de reception au client qui le réceptionne
+void masterStop(int fd, int confirm_receipt);
+void clientStop(int fd);
+// Envoie du nombre premier à tester au master qui le réceptionne
+void clientCompute(int fd, int compute_prime);
+int masterCompute(int fd);
+//
+void masterPrime(int fd, int is_prime);
+void clientPrime(int fd, int number_tested);
 
 // Le client envoie le nombre premier a traité au master
 // void clientSendsPrimeToMaster(int fd, int prime);
@@ -131,6 +146,5 @@ void augmenteSemaphore(int semId);
 
 // Diminue le sémpahore dont l'id est passé en paramètre
 void diminueSemaphore(int semId);
-
 
 #endif
