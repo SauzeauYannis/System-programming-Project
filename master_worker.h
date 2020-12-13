@@ -5,6 +5,15 @@
 //    - des constantes pour rendre plus lisible les comunications
 //    - des fonctions communes (écriture dans un tube, ...)
 
+// Taille du tableau de fd des tubes anonymes
+#define SIZE_PIPE 2
+
+// Ordre d'arrêt pour les workers
+#define STOP -1
+
+// Pour dire qu'il n'y a pas de suivant
+#define NO_NEXT -1
+
 // Pour savoir si un nombre est premier
     // Le nombre n'est pas premier
 #define NUMBER_NOT_PRIME 0
@@ -19,7 +28,7 @@ int readingSidePipe(int pipe[2]);
 int writingSidePipe(int pipe[2]);
 
 // Ferme les file descriptor entrés en paramètre
-void closeFD( int fd1, int fd2);
+void closeFD(int fd_prev, int fd_next, int fd_master);
 
 // Permet au worker de dire au master que le nombre envoyé est un nombre premier
 void workerIsPrime (int fd, int is_prime);
@@ -31,7 +40,12 @@ void masterNumberToCompute(int fd, int number);
 // Permet au worker de recevoir le nombre à traiter
 int workerNumberToCompute(int fd);
 
-void createWorker_2(int prime_2, int pipe_MtoW, int pipe_WtoM);
+// Permet au worker d'envoyer un nombre au worker suivant
+void workerToNextWorker(int fd, int number);
+// Permet au worker de recevoir le nombre envoyer par le worker précédent
+int workerToPreviousWorker(int fd);
 
+// Pour créer un worker
+void createWorker(int prime_number, int previous_pipe, int master_pipe);
 
 #endif

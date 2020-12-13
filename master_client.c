@@ -18,7 +18,7 @@
 #include <sys/sem.h>    // Pour: semget, semctl, semop
 #include <sys/stat.h>   // Pour: mkfifo, open
 #include <fcntl.h>      // Pour: open
-#include <unistd.h>     // Pour: unlink, write, read
+#include <unistd.h>     // Pour: unlink, write, read, close
 
 
 /**********************************************

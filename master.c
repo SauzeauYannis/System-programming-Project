@@ -11,12 +11,10 @@
 #include "master_client.h"
 #include "master_worker.h"
 
-// Pour test (à mettre ds le master_worker.c)
-#include <sys/types.h>
-#include <unistd.h>
-#include <string.h>
-#include <assert.h>
-
+// Bibliothéques ajoutés
+#include <unistd.h>     // Pour: fork, pipe
+#include <sys/types.h>  // Pour: wait
+#include <sys/wait.h>   // Pour: wait
 
 /************************************************************************
  * Données persistantes d'un master
@@ -28,6 +26,8 @@ typedef struct master
 {
     int semaphores[NB_SEMAPHORE];
     const char* named_tubes[NB_NAMED_PIPES];
+    int masterToWorkerPipe[SIZE_PIPE];
+    int workerToMasterPipe[SIZE_PIPE];
     int how_many;
     int highest;
     int nb_to_compute;
@@ -50,10 +50,12 @@ static void usage(const char *exeName, const char *message)
 /************************************************************************
  * boucle principale de communication avec le client
  ************************************************************************/
-void loop(masterDonnees donnees)
+void loop(masterDonnees donnees, int fdWritingMaster, int fdReadingMaster)
 {
     while (true)
     {
+        printf("MASTER : En attente d'une instruction d'un client...\n");
+
         // Ouverture des tubes:
             // Ouverture du tube nommé client vers master en lecture
         int fd_client_master = openNamedPipeInReading(donnees.named_tubes[PIPE_CLIENT_MASTER]);
@@ -68,18 +70,52 @@ void loop(masterDonnees donnees)
             int compute_prime = masterCompute(fd_client_master);
             printf("MASTER : En train de calculer si %d est un nombre premier\n", compute_prime);
 
-            // TODO : Test de la primalité avec les workers
-            if (true)
+            // Avant d'envoyer le nombre dans la pipeline on doit s'assurrer d'nevoyer tous les
+            // nombres compris entre le nombre à calculer et le plus grand nombre trouvé
+            if (compute_prime > donnees.highest)
+            {
+                for (int i = (donnees.highest + 1); i < compute_prime; i++)
+                {
+                    masterNumberToCompute(fdWritingMaster, i);
+                    int result = masterIsPrime(fdReadingMaster);
+                    if (result > 1)
+                    {
+                        donnees.how_many++;
+                        donnees.highest = result;
+                    }
+                }
+            }
+
+            masterNumberToCompute(fdWritingMaster, compute_prime);
+
+            int result = masterIsPrime(fdReadingMaster);
+            if (result == NUMBER_IS_PRIME)
+            {
                 masterPrime(fd_master_client, NUMBER_IS_PRIME);
-            else
+            }
+            else if (result == NUMBER_NOT_PRIME)
+            {
                 masterPrime(fd_master_client, NUMBER_NOT_PRIME);
+
+            }
+            else
+            {
+                donnees.how_many++;
+                donnees.highest = result;
+            }      
         }
         else if (order == ORDER_HOW_MANY_PRIME)
             masterHowMany(fd_master_client, donnees.how_many);
         else if (order == ORDER_HIGHEST_PRIME)
             masterHighestPrime(fd_master_client, donnees.highest);
         else if (order == ORDER_STOP)
+        {
+            // On envoie l'ordre d'arret au premier worker
+            masterNumberToCompute(fdWritingMaster, STOP);
+            // On attend la fin du premier worker
+            wait(NULL);
             masterStop(fd_master_client, ORDER_STOP);
+        }
         else // Ne doit normalement jamais aller ici sinon il y a une erreur dans le programme
         {
             fprintf(stderr, "L'ordre du client recu par le master est inconnu\n");
@@ -95,14 +131,75 @@ void loop(masterDonnees donnees)
         // On diminue le sémaphore entre le master et le client pour attendre la fin du client
         diminueSemaphore(donnees.semaphores[SEM_MASTER_CLIENT]);
 
-        printf("MASTER : En attente d'une instruction d'un client...\n");
-
         // Si l'ordre est de stoper le master on sort de la boucle
         if (order == ORDER_STOP)
             break;
     }
 }
 
+/************************************************************************
+ * Initialisation des données
+ ************************************************************************/
+masterDonnees initDonnees()
+{
+    // Déclaration de la structure qui stocke les données utiles au master
+    masterDonnees donnees;
+
+    // CREATIONS:
+
+    // - Création des sémaphores:
+        // Création du sémaphore entre les clients
+    donnees.semaphores[SEM_CLIENTS] = creationSemaphoreClients();
+        // Création du sémaphore entre le master et un client
+    donnees.semaphores[SEM_MASTER_CLIENT] = creationSemaphoreMasterClient();
+    printf("Les sémaphores se sont créés et initialisé correctement\n");
+
+    // - Création des tubes nommés
+        // Création du tube nommé client vers master
+    donnees.named_tubes[PIPE_CLIENT_MASTER] = createPipeClientMaster();
+        // Création du tube nommé master vers client
+    donnees.named_tubes[PIPE_MASTER_CLIENT] = createPipeMasterClient();
+    printf("Les tubes nommés se sont créés correctement\n");
+
+    // Initialisation du nombre de calcul fait et du plus grand nombre premier trouvé à 0
+    donnees.how_many = 0;
+    donnees.highest = 0;
+    
+    // Création des deux premiers tubes anonymes
+    int ret;
+        // Tube anonyme du master vers le worker
+    ret = pipe(donnees.masterToWorkerPipe);
+    myassert(ret != -1, "Le tube anonyme Master->Worker s'est mal créé");
+        // Tube anonyme du worker vers le master
+    ret = pipe(donnees.workerToMasterPipe);
+    myassert(ret != -1, "Le tube anonyme Worker->Master s'est mal créé");
+
+    return donnees;
+}
+
+/************************************************************************
+ * Destruction des données
+ ************************************************************************/
+void detruireDonnees(masterDonnees donnees)
+{
+    printf("MASTER : En cours d'extinction...\n");
+
+    // DESTRUCTIONS:
+
+    // - Destruction des sémaphores:
+        // Destruction du sémaphore entre les clients
+    detruireSemaphore(donnees.semaphores[SEM_CLIENTS]);
+        // Destruction du sémaphore entre le master et un client
+    detruireSemaphore(donnees.semaphores[SEM_MASTER_CLIENT]);
+    printf("Les sémaphores se sont détruit correctement\n");
+
+    // - Destruction des tubes nommés:
+        // Destruction du tube nommé client vers master
+    destroyNamedPipe(donnees.named_tubes[PIPE_CLIENT_MASTER]);
+        // Destruction du tube nommé master vers client 
+    destroyNamedPipe(donnees.named_tubes[PIPE_MASTER_CLIENT]);
+    printf("Les tubes nommés se sont détruit correctement\n");
+}
 
 /************************************************************************
  * Fonction principale
@@ -113,85 +210,48 @@ int main(int argc, char * argv[])
     if (argc != 1)
         usage(argv[0], NULL);
 
-    // Déclaration de la structure qui stocke les données utiles au master
-    masterDonnees donnes;
+    // On initialise les données
+    masterDonnees donnees = initDonnees();
 
-    // CREATIONS:
-
-    // - Création des sémaphores:
-        // Création du sémaphore entre les clients
-    donnes.semaphores[SEM_CLIENTS] = creationSemaphoreClients();
-        // Création du sémaphore entre le master et un client
-    donnes.semaphores[SEM_MASTER_CLIENT] = creationSemaphoreMasterClient();
-    printf("Les sémaphores se sont créés et initialisé correctement\n");
-
-    // - Création des tubes nommés
-        // Création du tube nommé client vers master
-    donnes.named_tubes[PIPE_CLIENT_MASTER] = createPipeClientMaster();
-        // Création du tube nommé master vers client
-    donnes.named_tubes[PIPE_MASTER_CLIENT] = createPipeMasterClient();
-    printf("Les tubes nommés se sont créés correctement\n");
-
-    // Initialisation du nombre de calcul fait et du plus grand nombre premier trouvé à 0
-    donnes.how_many = 0;
-    donnes.highest = 0;
-
-    // TODO : Création du premier worker
+    // Premier nombre premier à passer au premier worker
+    int firstPrimeNumber = 2;
     
-    //faire un tube anonyme
-    int anoPipeMtoW[2];
-    int anoPipeWtoM[2];
-    int ret;
-    //pid_t ret_fork;
-
-    ret = pipe(anoPipeMtoW);
-    myassert(ret != -1, "La pipe anonyme Master->Worker s'est mal créée");
-    ret = pipe(anoPipeWtoM);
-    myassert(ret != -1, "La pipe anonyme Worker->Master s'est mal créée");
-
-    // Phase test
-    int number = 3;
-    printf("\tMaster envoie %d à Worker_2\n", number);
-    masterNumberToCompute(writingSidePipe(anoPipeMtoW), number);
-    createWorker_2(2, readingSidePipe(anoPipeMtoW), writingSidePipe(anoPipeWtoM));
-    close(writingSidePipe(anoPipeMtoW));
-    printf("\tMaster reçoit %d de Worker_2\n", masterIsPrime(readingSidePipe(anoPipeWtoM)));
-    close(readingSidePipe(anoPipeWtoM));
-    
-    /* TO DO:
-    ret_fork = fork();
+    // Création d'un nouveau processus pour executer le premier worker 
+    pid_t ret_fork = fork();
     myassert(ret_fork != -1, "Le fork du master pour créer les workers s'est mal exécuté");
 
+    // Processus fils issus du fork
     if (ret_fork == 0)
     {
+        int fdReadingWorker = readingSidePipe(donnees.masterToWorkerPipe);
+        int fdWrittingWorker = writingSidePipe(donnees.workerToMasterPipe);
+        createWorker(firstPrimeNumber, fdReadingWorker, fdWrittingWorker);
     }
-    
-    for (int i = 0; i < count; i++)
+
+    int fdWritingMaster = writingSidePipe(donnees.masterToWorkerPipe);
+    int fdReadingMaster = readingSidePipe(donnees.workerToMasterPipe);
+    masterNumberToCompute(fdWritingMaster, firstPrimeNumber);
+    int isPrime = masterIsPrime(fdReadingMaster);
+    if (isPrime)
     {
- 
+        printf("Le premier worker a bien reconnu %d comme étant un nombre premier\n", firstPrimeNumber);
+        printf("Vous pouvez maintenant lancer un client pour tester d'autres nombres premier\n");
+        donnees.how_many++;
+        donnees.highest = firstPrimeNumber;
     }
-    */    
+    else // Si le programme vient ici c'est qu'il y a eu un problème lors de la création du premier worker
+    {
+        fprintf(stderr, "La création du premier worker ne s'est pas bien déroulée\n");
+        // Destruction des données
+        detruireDonnees(donnees);
+        return EXIT_FAILURE;
+    }
 
-    printf("MASTER : En attente d'une instruction d'un client...\n");
+    // Boucle infinie pour la communication avec le client
+    loop(donnees, fdWritingMaster, fdReadingMaster);
 
-    // boucle infinie
-    loop(donnes);
-
-    printf("MASTER : En cours d'extinction...");
-
-    // - Destruction des sémaphores:
-        // Destruction du sémaphore entre les clients
-    detruireSemaphore(donnes.semaphores[SEM_CLIENTS]);
-        // Destruction du sémaphore entre le master et un client
-    detruireSemaphore(donnes.semaphores[SEM_MASTER_CLIENT]);
-    printf("Les sémaphores se sont détruit correctement\n");
-
-    // - Destruction des tubes nommés:
-        // Destruction du tube nommé client vers master
-    destroyNamedPipe(donnes.named_tubes[PIPE_CLIENT_MASTER]);
-        // Destruction du tube nommé master vers client 
-    destroyNamedPipe(donnes.named_tubes[PIPE_MASTER_CLIENT]);
-    printf("Les tubes nommés se sont détruit correctement\n");
+    // Destruction des données
+    detruireDonnees(donnees);
 
     return EXIT_SUCCESS;
 }

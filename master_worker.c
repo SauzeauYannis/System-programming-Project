@@ -9,26 +9,23 @@
 #include "master_worker.h"
 
 // Bibliothéques ajoutés
-#include <sys/types.h>
-#include <unistd.h>
-#include <string.h>
-#include <assert.h>
+#include <unistd.h>   // Pour: write, read, close, execv
+#include <string.h>   // Pour: sprintf
+#include <stdbool.h>  // Pour: bool
 
-
-//static void
 
 /**********************************************
             Pour les tubes anonymes
  **********************************************/
+
 
 //============ MANIPULATION DE TUBES ANONYMES ============
 
 // Fournit le côté lecture d'une pipe entrée en paramètre
 int readingSidePipe(int pipe[2])
 {
-    // Ferme le côté écriture et teste s'il est bien fermé (POSSIBLE SLMNT DS UN FORK)
-    //int ret = close(pipe[1]);
-    //myassert(ret != -1, "La fermeture du coté écriture d'une pipe anonyme s'est mal effectuée");
+    int ret = close(pipe[1]);
+    myassert(ret != -1, "La fermeture du côté écriture d'un tube anonyme s'est mal effectuée");
 
     return pipe[0];
 }
@@ -36,21 +33,25 @@ int readingSidePipe(int pipe[2])
 // Fournit le côté écriture d'une pipe entrée en paramètre
 int writingSidePipe(int pipe[2])
 {
-    // Ferme le côté lecture et teste s'il est bien fermé (POSSIBLE SLMNT DS UN FORK)
-    //int ret = close(pipe[0]);
-    //myassert(ret != -1, "La fermeture du coté lecture d'une pipe anonyme s'est mal effectuée");
+    int ret = close(pipe[0]);
+    myassert(ret != -1, "La fermeture du côté lecture d'un tube anonyme s'est mal effectuée");
 
     return pipe[1];
 }
 
 // Ferme les file descriptor entrés en paramètre
-void closeFD( int fd1, int fd2)
+void closeFD(int fd_prev, int fd_next, int fd_master)
 {
     // Ferme les fd et teste s'ils sont bien fermés
     int ret;
-    ret = close(fd1);
+    ret = close(fd_prev);
     myassert(ret != -1, "La fermeture d'un FD d'une pipe anonyme s'est mal effectuée");
-    ret = close(fd2);
+    if (fd_next != NO_NEXT) // On vérifie qu'il y a bien un tube suivant avant de le libérer
+    {
+        ret = close(fd_next);
+        myassert(ret != -1, "La fermeture d'un FD d'une pipe anonyme s'est mal effectuée");
+    }
+    ret = close(fd_master);
     myassert(ret != -1, "La fermeture d'un FD d'une pipe anonyme s'est mal effectuée");
 }
 
@@ -89,6 +90,8 @@ int workerNumberToCompute(int fd)
     return receiveData(fd);
 }
 
+//-------------------------------------------------------------------------------------
+
 // Permet au worker de dire au master que le nombre envoyé est un nombre premier
 void workerIsPrime(int fd, int is_prime)
 {
@@ -101,27 +104,32 @@ int masterIsPrime(int fd)
     return receiveData(fd);
 }
 
+//-------------------------------------------------------------------------------------
 
-
+// Permet au worker d'envoyer un nombre au worker suivant
+void workerToNextWorker(int fd, int number)
+{
+    sendData(fd, number);
+}
 
 /**********************************************
             Pour les workers
  **********************************************/
 
 
-// Pour créer le worker avec la nombre premier 2 
-void createWorker_2(int prime_2, int pipe_MtoW_RD, int pipe_WtoM_WR)
+// Pour créer un worker
+void createWorker(int prime_number, int previous_pipe, int master_pipe)
 {
-    printf("Creation du worker_2\n");
+    printf("Creation du worker qui a pour charge le nombre premier %d\n", prime_number);
 
     char *argv[5];
-    char MtoW[1000];
-    char WtoM[1000];
-    char prime[1000];
+    char MtoW[10];
+    char WtoM[10];
+    char prime[10];
 
-    sprintf(prime, "%d", prime_2);
-    sprintf(MtoW, "%d", pipe_MtoW_RD);
-    sprintf(WtoM, "%d", pipe_WtoM_WR);
+    sprintf(prime, "%d", prime_number);
+    sprintf(MtoW, "%d", previous_pipe);
+    sprintf(WtoM, "%d", master_pipe);
     
     argv[0] = "worker";
     argv[1] = prime;
@@ -129,6 +137,6 @@ void createWorker_2(int prime_2, int pipe_MtoW_RD, int pipe_WtoM_WR)
     argv[3] = WtoM;
     argv[4] = NULL;
 
-    execv(argv[0],argv);
-    perror("Problème avec l'exec de la création du worker_2");
+    execv(argv[0], argv);
+    perror("Problème avec l'exec lors de la création d'un worker");
 }
