@@ -30,7 +30,7 @@
 // **** CREATION ****
 
 // Fonction générale pour créé un tube nommé
-const char* createNamedPipe(const char* pipePathName)
+static const char* createNamedPipe(const char* pipePathName)
 {
     // Crée le tube nommé en lecture/ecriture et teste s'il est bien créé 
     int pipe = mkfifo(pipePathName, 0641);
@@ -55,27 +55,28 @@ const char* createPipeMasterClient()
 
 // **** OUVERTURE ****
 
-// Ouverture du tube en paramètre en mode lecture
-int openNamedPipeInReading(const char* pipe)
+// Fonction générale pour ouvrir un tube nommé
+static int openNamedPipe(const char* pipe, int flag)
 {
     // Ouvre le tube nommé en lecture et teste s'il a bien été ouvert
-    int fd = open(pipe, O_RDONLY);
-    myassert(fd != -1, "L'ouverture du tube en lecture s'est mal exécutée");
+    int fd = open(pipe, flag);
+    myassert(fd != -1, "L'ouverture d'un tube nommé s'est mal exécutée");
 
     // Retourne le file descriptor
     return fd;
 }
 //-------------------------------------------------------------------------------------
 
+// Ouverture du tube en paramètre en mode lecture
+int openNamedPipeInReading(const char* pipe)
+{
+    return openNamedPipe(pipe, O_RDONLY);
+}
+
 // Ouverture du tube en paramètre en mode écriture
 int openNamedPipeInWriting(const char* pipe)
 {
-    // Ouvre le tube nommé en écriture et teste s'il a bien été ouvert
-    int fd = open(pipe, O_WRONLY);
-    myassert(fd != -1, "L'ouverture du tube en écriture s'est mal exécutée");
-
-    // Retourne le file descriptor
-    return fd;
+    return openNamedPipe(pipe, O_WRONLY);
 }
 
 // **** FERMETURE **** 
@@ -101,7 +102,7 @@ void destroyNamedPipe(const char* name)
 //============ UTILISATION DE TUBES NOMMES ============
 
 // Fonction général d'envoie d'une données par un tube nommé
-void sentData(int fd, int data)
+static void sentData(int fd, int data)
 {
     // Envoie la donnée par le tube mis en paramètre
     int ret = write(fd, &data, sizeof(int));
@@ -109,7 +110,7 @@ void sentData(int fd, int data)
 }
 
 // Fonction général de reception d'une données par un tube nommé
-int receiveData(int fd)
+static int receiveData(int fd)
 {
     // Lecture de la donnée par le tube mis en paramètre
     int data;
@@ -270,7 +271,7 @@ int creationSemaphoreClients()
     return creationSemaphore(getKeySemaphoreClients(), 1);
 }
 
-// Créé le sémaphore entre le master un client et l'initialise à 0
+// Créé le sémaphore entre le master et un client et l'initialise à 0
 int creationSemaphoreMasterClient()
 {
     return creationSemaphore(getKeySemaphoreMasterClient(), 0);

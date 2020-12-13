@@ -44,7 +44,7 @@
 /****** Fonctions *******/
 
 // Fonctions qui créer les tubes nommés et qui renvoient leurs noms :
-const char* createNamedPipe(const char* pipePathName);
+//const char* createNamedPipe(const char* pipePathName);
 const char* createPipeClientMaster();
 const char* createPipeMasterClient();
 
@@ -59,8 +59,8 @@ void closeNamedPipe(int fd);
 void destroyNamedPipe(const char* name);
 
 // Fonctions général d'envoie et réception de données par un tube nommé
-void sentData(int fd, int data);
-int receiveData(int fd);
+//void sentData(int fd, int data);
+//int receiveData(int fd);
 // Envoie de l'ordre du client au master qui le réceptionne
 void clientOrderMaster(int fd, int order);
 int masterOrderClient(int fd);

@@ -128,9 +128,9 @@ int main(int argc, char * argv[])
         augmenteSemaphore(semIdClients);
 
         // Fermeture des tubes
-        // Fermeture du tube nommé client vers master
+            // Fermeture du tube nommé client vers master
         closeNamedPipe(fd_client_master);
-        // Fermeture du tube nommé master vers client
+            // Fermeture du tube nommé master vers client
         closeNamedPipe(fd_master_client);
 
         // On prend le sémaphore qui gére les relations entre le master et un client

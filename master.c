@@ -11,6 +11,13 @@
 #include "master_client.h"
 #include "master_worker.h"
 
+// Pour test (à mettre ds le master_worker.c)
+#include <sys/types.h>
+#include <unistd.h>
+#include <string.h>
+#include <assert.h>
+
+
 /************************************************************************
  * Données persistantes d'un master
  ************************************************************************/
@@ -23,7 +30,7 @@ typedef struct master
     const char* named_tubes[NB_NAMED_PIPES];
     int how_many;
     int highest;
-    bool is_prime;
+    int nb_to_compute;
 } masterDonnees;
 
 
@@ -130,6 +137,40 @@ int main(int argc, char * argv[])
     donnes.highest = 0;
 
     // TODO : Création du premier worker
+    
+    //faire un tube anonyme
+    int anoPipeMtoW[2];
+    int anoPipeWtoM[2];
+    int ret;
+    //pid_t ret_fork;
+
+    ret = pipe(anoPipeMtoW);
+    myassert(ret != -1, "La pipe anonyme Master->Worker s'est mal créée");
+    ret = pipe(anoPipeWtoM);
+    myassert(ret != -1, "La pipe anonyme Worker->Master s'est mal créée");
+
+    // Phase test
+    int number = 3;
+    printf("\tMaster envoie %d à Worker_2\n", number);
+    masterNumberToCompute(writingSidePipe(anoPipeMtoW), number);
+    createWorker_2(2, readingSidePipe(anoPipeMtoW), writingSidePipe(anoPipeWtoM));
+    close(writingSidePipe(anoPipeMtoW));
+    printf("\tMaster reçoit %d de Worker_2\n", masterIsPrime(readingSidePipe(anoPipeWtoM)));
+    close(readingSidePipe(anoPipeWtoM));
+    
+    /* TO DO:
+    ret_fork = fork();
+    myassert(ret_fork != -1, "Le fork du master pour créer les workers s'est mal exécuté");
+
+    if (ret_fork == 0)
+    {
+    }
+    
+    for (int i = 0; i < count; i++)
+    {
+ 
+    }
+    */    
 
     printf("MASTER : En attente d'une instruction d'un client...\n");
 
