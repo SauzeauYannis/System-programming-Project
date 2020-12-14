@@ -78,10 +78,11 @@ void loop(masterDonnees donnees, int fdWritingMaster, int fdReadingMaster)
                 {
                     masterNumberToCompute(fdWritingMaster, i);
                     int result = masterIsPrime(fdReadingMaster);
-                    if (result > 1)
+                    // Si le nombre parcouru est premier il est alors le plus grand nombre premier
+                    if (result == NUMBER_IS_PRIME || result > 1)
                     {
                         donnees.how_many++;
-                        donnees.highest = result;
+                        donnees.highest = i;
                     }
                 }
             }
@@ -92,17 +93,16 @@ void loop(masterDonnees donnees, int fdWritingMaster, int fdReadingMaster)
             if (result == NUMBER_IS_PRIME)
             {
                 masterPrime(fd_master_client, NUMBER_IS_PRIME);
+                if (compute_prime > donnees.highest)
+                {
+                    donnees.how_many++;
+                    donnees.highest = compute_prime;
+                }
             }
             else if (result == NUMBER_NOT_PRIME)
             {
                 masterPrime(fd_master_client, NUMBER_NOT_PRIME);
-
-            }
-            else
-            {
-                donnees.how_many++;
-                donnees.highest = result;
-            }      
+            }    
         }
         else if (order == ORDER_HOW_MANY_PRIME)
             masterHowMany(fd_master_client, donnees.how_many);
@@ -145,8 +145,6 @@ masterDonnees initDonnees()
     // Déclaration de la structure qui stocke les données utiles au master
     masterDonnees donnees;
 
-    // CREATIONS:
-
     // - Création des sémaphores:
         // Création du sémaphore entre les clients
     donnees.semaphores[SEM_CLIENTS] = creationSemaphoreClients();
@@ -182,10 +180,6 @@ masterDonnees initDonnees()
  ************************************************************************/
 void detruireDonnees(masterDonnees donnees)
 {
-    printf("MASTER : En cours d'extinction...\n");
-
-    // DESTRUCTIONS:
-
     // - Destruction des sémaphores:
         // Destruction du sémaphore entre les clients
     detruireSemaphore(donnees.semaphores[SEM_CLIENTS]);

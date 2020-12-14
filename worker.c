@@ -93,6 +93,7 @@ void loop(workerDonnees data)
                 wait(NULL);
             }
             // On sort de la boucle
+            printf("Destruction du worker qui a pour charge le nombre premier %d\n", data.prime);
             break;
         }
         // Si c'est un nombre à tester
