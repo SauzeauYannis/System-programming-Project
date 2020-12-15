@@ -315,7 +315,7 @@ void detruireSemaphore(int semId)
 
 //============ UTILISATION DES SEMAPHORES ============
 
-void operationSemaphore(int semId, int operation)
+static void operationSemaphore(int semId, int operation)
 {
     // On effectue l'opération sur le sémaphore qui a pour id le paramètre de la fonction
     struct sembuf augmente = {0, operation, 0};

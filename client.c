@@ -11,6 +11,11 @@
 
 #include "master_client.h"
 
+// Bibliothéques ajoutés
+
+#include <math.h>     // Pour: sqrt
+#include <pthread.h>  // Pour: pthread_t, pthread_create, pthread_join
+
 // chaines possibles pour le premier paramètre de la ligne de commande
 #define TK_STOP      "stop"
 #define TK_COMPUTE   "compute"
@@ -76,6 +81,74 @@ static int parseArgs(int argc, char * argv[], int *number)
     return order;
 }
 
+/************************************************************************
+ * Fonction locale pour le calcul d'un nombre premier
+ ************************************************************************/
+
+// Paramètre pour les threads
+typedef struct
+{
+    int testedPrime;
+    int caseNumber;
+    bool result;
+} ThreadData;
+
+
+// Fonction support d'un thread
+void * codeThread(void * arg)
+{
+    ThreadData *data = (ThreadData *) arg;
+
+    // On ajoute 2 au numéro de la case pour que la
+    // première case du tableau corresponde au chiffre
+    // 2 et ainsi de suite
+    int caseNum = data->caseNumber + 2;
+    // Si le nombre a tester est divisible par le nombre
+    // dont le thread a la charge alors la case est mise à false
+    data->result = (data->testedPrime % caseNum) != 0;
+    return NULL;
+}
+
+void computeLocalPrime(int number)
+{
+    // Il y a racine(number)-1 threads qu'on stocke dans un tableau d'id
+    int nbThreads = (int) sqrt(number) - 1;
+    pthread_t idThreadsArray[nbThreads];
+    ThreadData datas[nbThreads];
+
+    // Lancement des threads
+    for (int i = 0; i < nbThreads; i++)
+    {
+        // Ininitalistion des données de chaque thread
+        datas[i].testedPrime = number;
+        datas[i].caseNumber = i;
+        datas[i].result = false;
+        // Création du thread numéro i
+        int ret = pthread_create(&(idThreadsArray[i]), NULL, codeThread, &(datas[i]));
+        myassert(ret == 0, "Un thread s'est mal créé");
+    }
+    
+    // Attente de la fin des threads
+    for (int i = 0; i < nbThreads; i++)
+    {
+        int ret = pthread_join(idThreadsArray[i], NULL);
+        myassert(ret == 0, "L'attente de la fin d'un thread s'est mal déroulé");
+    }
+    
+    // On regarde si toutes les cases sont à true
+    for (int i = 0; i < nbThreads; i++)
+    {
+        // Si la case est à false alors le nombre n'est pas premier et on arrête la fonction
+        if (!datas[i].result)
+        {
+            printf("Le nombre %d n'est pas premier\n", number);
+            return;
+        }  
+    }
+    
+    // Si on arrive ici c'est que toutes les cases testées étaient à true donc le nombre est premier
+    printf("Le nombre %d est premier\n", number);
+}
 
 /************************************************************************
  * Fonction principale
@@ -86,11 +159,13 @@ int main(int argc, char * argv[])
     int number = 0;
     int order = parseArgs(argc, argv, &number);
 
+    // Si l'ordre est de calculer localement
+    // on utilise la fonction avec les threads ci-dessus
     if (order == ORDER_COMPUTE_PRIME_LOCAL)
     {
-        printf("TODO : ORDER_COMPUTE_PRIME_LOCAL\n");
+        computeLocalPrime(number);
     }
-    else
+    else // Sinon il faut communiquer avec le master
     {
         // On prend le sémaphore qui gére les relations entre les clients
         int semIdClients = getIdSemaphoreClients();
@@ -109,8 +184,8 @@ int main(int argc, char * argv[])
         // Si le client doit transmettre le nombre premier à calculer
         if (order == ORDER_COMPUTE_PRIME)
         {
-            clientCompute(fd_client_master, number);
-            clientPrime(fd_master_client, number);
+            clientCompute(fd_client_master, number); // Envoi du nombre à tester
+            clientPrime(fd_master_client, number);   // Réception qui indique si le nombre est premire
         }
         else if (order == ORDER_HOW_MANY_PRIME)
             clientHowMany(fd_master_client);

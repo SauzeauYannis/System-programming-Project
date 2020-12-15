@@ -122,21 +122,30 @@ void createWorker(int prime_number, int previous_pipe, int master_pipe)
 {
     printf("Creation du worker qui a pour charge le nombre premier %d\n", prime_number);
 
-    char *argv[5];
-    char MtoW[10];
-    char WtoM[10];
-    char prime[10];
+    // On déclare les chaines de caractéres qui vont
+    // être envoyé en argument de l'exec, on sur-dimmenssionne
+    // les tableaux mais sans mettre un nombre exorbitant puisque
+    // le max_int en C a 10 chiffres (11 avec le moins)
+    char *argv[5];   // Arguments de l'exec
+    char MtoW[12];
+    char WtoM[12];
+    char prime[12];
 
+    // On transforme les int en chaine de caractére qu'on met
+    // dans les tabelaux qu'on vient de déclarer ci-dessus
     sprintf(prime, "%d", prime_number);
     sprintf(MtoW, "%d", previous_pipe);
     sprintf(WtoM, "%d", master_pipe);
     
+    // On intialise les arguments de l'exec
     argv[0] = "worker";
     argv[1] = prime;
     argv[2] = MtoW;
     argv[3] = WtoM;
     argv[4] = NULL;
 
+    // On fait l'exec
     execv(argv[0], argv);
+    // Normalement le programme ne va pas jusque là, sinon on lève une erreur
     perror("Problème avec l'exec lors de la création d'un worker");
 }

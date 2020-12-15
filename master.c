@@ -20,17 +20,17 @@
  * Données persistantes d'un master
  ************************************************************************/
 
-// on peut ici définir une structure stockant tout ce dont le master
-// a besoin
-typedef struct master
+// Définition de la structure des données pour le master
+typedef struct
 {
     int semaphores[NB_SEMAPHORE];
     const char* named_tubes[NB_NAMED_PIPES];
     int masterToWorkerPipe[SIZE_PIPE];
     int workerToMasterPipe[SIZE_PIPE];
+    int fdWritingMaster;
+    int fdReadingMaster;
     int how_many;
     int highest;
-    int nb_to_compute;
 } masterDonnees;
 
 
@@ -50,8 +50,10 @@ static void usage(const char *exeName, const char *message)
 /************************************************************************
  * boucle principale de communication avec le client
  ************************************************************************/
-void loop(masterDonnees donnees, int fdWritingMaster, int fdReadingMaster)
+
+void loop(masterDonnees donnees)
 {
+    // Boucle infinie
     while (true)
     {
         printf("MASTER : En attente d'une instruction d'un client...\n");
@@ -65,19 +67,22 @@ void loop(masterDonnees donnees, int fdWritingMaster, int fdReadingMaster)
         // Le master recoit l'ordre donné par le client
         int order = masterOrderClient(fd_client_master);
 
+        // Si l'ordre indique de calculer un nombre premier
         if (order == ORDER_COMPUTE_PRIME)
         {
+            // On récupère le nombre premier à calculer
             int compute_prime = masterCompute(fd_client_master);
             printf("MASTER : En train de calculer si %d est un nombre premier\n", compute_prime);
 
-            // Avant d'envoyer le nombre dans la pipeline on doit s'assurrer d'nevoyer tous les
+            // Avant d'envoyer le nombre dans la pipeline on doit s'assurrer d'envoyer tous les
             // nombres compris entre le nombre à calculer et le plus grand nombre trouvé
             if (compute_prime > donnees.highest)
             {
+                // On envoie les nombres un par un et on regarde si il y a un nouveau nombre premier qui a été trouvé
                 for (int i = (donnees.highest + 1); i < compute_prime; i++)
                 {
-                    masterNumberToCompute(fdWritingMaster, i);
-                    int result = masterIsPrime(fdReadingMaster);
+                    masterNumberToCompute(donnees.fdWritingMaster, i);
+                    int result = masterIsPrime(donnees.fdReadingMaster);
                     // Si le nombre parcouru est premier il est alors le plus grand nombre premier
                     if (result == NUMBER_IS_PRIME || result > 1)
                     {
@@ -87,34 +92,40 @@ void loop(masterDonnees donnees, int fdWritingMaster, int fdReadingMaster)
                 }
             }
 
-            masterNumberToCompute(fdWritingMaster, compute_prime);
+            // On envoie le nombre à tester au premier worker
+            masterNumberToCompute(donnees.fdWritingMaster, compute_prime);
 
-            int result = masterIsPrime(fdReadingMaster);
-            if (result == NUMBER_IS_PRIME)
+            // On regarde les résultat que nous a envoyé un worker
+            int result = masterIsPrime(donnees.fdReadingMaster);
+            // Si le nombre est premier on l'indique au client
+            if (result == NUMBER_IS_PRIME || result > 1)
             {
                 masterPrime(fd_master_client, NUMBER_IS_PRIME);
+                // Si le nombre testé est plus grand que le plus grand nombre 
+                // premier stocké dans la mémoire on le remplace
                 if (compute_prime > donnees.highest)
                 {
                     donnees.how_many++;
                     donnees.highest = compute_prime;
                 }
             }
+            // Si il n'est pas premier on l'indique aussi au client
             else if (result == NUMBER_NOT_PRIME)
             {
                 masterPrime(fd_master_client, NUMBER_NOT_PRIME);
             }    
         }
         else if (order == ORDER_HOW_MANY_PRIME)
-            masterHowMany(fd_master_client, donnees.how_many);
+            masterHowMany(fd_master_client, donnees.how_many);      // Envoi du nombre de nombre premier calculés
         else if (order == ORDER_HIGHEST_PRIME)
-            masterHighestPrime(fd_master_client, donnees.highest);
+            masterHighestPrime(fd_master_client, donnees.highest);  // Envoi du plus grand nombre premier
         else if (order == ORDER_STOP)
         {
             // On envoie l'ordre d'arret au premier worker
-            masterNumberToCompute(fdWritingMaster, STOP);
+            masterNumberToCompute(donnees.fdWritingMaster, STOP);
             // On attend la fin du premier worker
             wait(NULL);
-            masterStop(fd_master_client, ORDER_STOP);
+            masterStop(fd_master_client, ORDER_STOP);               // Envoi d'un accusé de réception au client
         }
         else // Ne doit normalement jamais aller ici sinon il y a une erreur dans le programme
         {
@@ -140,6 +151,7 @@ void loop(masterDonnees donnees, int fdWritingMaster, int fdReadingMaster)
 /************************************************************************
  * Initialisation des données
  ************************************************************************/
+
 masterDonnees initDonnees()
 {
     // Déclaration de la structure qui stocke les données utiles au master
@@ -171,6 +183,7 @@ masterDonnees initDonnees()
         // Tube anonyme du worker vers le master
     ret = pipe(donnees.workerToMasterPipe);
     myassert(ret != -1, "Le tube anonyme Worker->Master s'est mal créé");
+    printf("Les tubes anonymes se sont créés correctement\n");
 
     return donnees;
 }
@@ -178,6 +191,7 @@ masterDonnees initDonnees()
 /************************************************************************
  * Destruction des données
  ************************************************************************/
+
 void detruireDonnees(masterDonnees donnees)
 {
     // - Destruction des sémaphores:
@@ -212,22 +226,29 @@ int main(int argc, char * argv[])
     
     // Création d'un nouveau processus pour executer le premier worker 
     pid_t ret_fork = fork();
-    myassert(ret_fork != -1, "Le fork du master pour créer les workers s'est mal exécuté");
+    myassert(ret_fork != -1, "Le fork du master pour créer le premier worker s'est mal exécuté");
 
     // Processus fils issus du fork
     if (ret_fork == 0)
     {
-        int fdReadingWorker = readingSidePipe(donnees.masterToWorkerPipe);
-        int fdWrittingWorker = writingSidePipe(donnees.workerToMasterPipe);
-        createWorker(firstPrimeNumber, fdReadingWorker, fdWrittingWorker);
+        // On initialise les files descriptors des tubes anonymes dont le premier worker a besoin
+        donnees.fdReadingMaster = readingSidePipe(donnees.masterToWorkerPipe);
+        donnees.fdWritingMaster = writingSidePipe(donnees.workerToMasterPipe);
+        // On créé le premier worker avec le premier nombre premier (ici 2)
+        createWorker(firstPrimeNumber, donnees.fdReadingMaster, donnees.fdWritingMaster); // Exec donc le fils s'arrête ici
     }
 
-    int fdWritingMaster = writingSidePipe(donnees.masterToWorkerPipe);
-    int fdReadingMaster = readingSidePipe(donnees.workerToMasterPipe);
-    masterNumberToCompute(fdWritingMaster, firstPrimeNumber);
-    int isPrime = masterIsPrime(fdReadingMaster);
+    // Processus père issus du fork
+    // On initialise les files descriptors des tubes anonymes dont le master a besoin
+    donnees.fdWritingMaster = writingSidePipe(donnees.masterToWorkerPipe);
+    donnees.fdReadingMaster = readingSidePipe(donnees.workerToMasterPipe);
+    // On envoie au premier worker le le premier nombre premier (ici 2)
+    masterNumberToCompute(donnees.fdWritingMaster, firstPrimeNumber);
+    // On vérifie que le premier worker a reconnu 2 comme étant un nombre premier
+    int isPrime = masterIsPrime(donnees.fdReadingMaster);
     if (isPrime)
     {
+        // L'initialisation du premier worker est faite
         printf("Le premier worker a bien reconnu %d comme étant un nombre premier\n", firstPrimeNumber);
         printf("Vous pouvez maintenant lancer un client pour tester d'autres nombres premier\n");
         donnees.how_many++;
@@ -242,7 +263,7 @@ int main(int argc, char * argv[])
     }
 
     // Boucle infinie pour la communication avec le client
-    loop(donnees, fdWritingMaster, fdReadingMaster);
+    loop(donnees);
 
     // Destruction des données
     detruireDonnees(donnees);
