@@ -72,8 +72,6 @@ void loop(masterDonnees donnees)
         {
             // On récupère le nombre premier à calculer
             int compute_prime = masterCompute(fd_client_master);
-            printf("MASTER : En train de calculer si %d est un nombre premier\n", compute_prime);
-
             // Avant d'envoyer le nombre dans la pipeline on doit s'assurrer d'envoyer tous les
             // nombres compris entre le nombre à calculer et le plus grand nombre trouvé
             if (compute_prime > donnees.highest)
@@ -91,14 +89,19 @@ void loop(masterDonnees donnees)
                     }
                 }
             }
+            
 
             // On envoie le nombre à tester au premier worker
             masterNumberToCompute(donnees.fdWritingMaster, compute_prime);
 
             // On regarde les résultat que nous a envoyé un worker
             int result = masterIsPrime(donnees.fdReadingMaster);
+            if (result > 1)
+            {
+                result = masterIsPrime(donnees.fdReadingMaster);
+            }
             // Si le nombre est premier on l'indique au client
-            if (result == NUMBER_IS_PRIME || result > 1)
+            if (result == NUMBER_IS_PRIME)
             {
                 masterPrime(fd_master_client, NUMBER_IS_PRIME);
                 // Si le nombre testé est plus grand que le plus grand nombre 
@@ -246,7 +249,7 @@ int main(int argc, char * argv[])
     masterNumberToCompute(donnees.fdWritingMaster, firstPrimeNumber);
     // On vérifie que le premier worker a reconnu 2 comme étant un nombre premier
     int isPrime = masterIsPrime(donnees.fdReadingMaster);
-    if (isPrime)
+    if ((isPrime == NUMBER_IS_PRIME) || isPrime > 1 )
     {
         // L'initialisation du premier worker est faite
         printf("Le premier worker a bien reconnu %d comme étant un nombre premier\n", firstPrimeNumber);

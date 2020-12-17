@@ -146,7 +146,6 @@ int main(int argc, char * argv[])
 
     // Traitement des arguments envoyé au master lors de sa création
     parseArgs(argc, argv, &data);
-    
     // Quand le worker est crée on envoie le nombre premier
     // de celui-ci au master
     workerIsPrime(data.master_pipe, data.prime);
