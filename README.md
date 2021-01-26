@@ -95,8 +95,6 @@ Each worker is responsible for a single prime number.
 
 If you want to recompile the project, use the "make" command.
 
-Translated with www.DeepL.com/Translator (free version)
-
 <a name="en_sk"/>
 
 ### Skills acquired
@@ -106,7 +104,7 @@ Translated with www.DeepL.com/Translator (free version)
     * Use of semaphores
     * Use of named pipelines
     * Use of anonymous pipelines
-    * Using the files
+    * Use of files
   * Bi-directional communication
   * Threads
 * Programming in C
