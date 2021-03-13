@@ -63,7 +63,7 @@ Si vous voulez recompiler le projet, utilisez la commande "make".
 
 ### Résultat
 
-Nous avons obtenu la note de ?/20. (résultat en Février)
+Nous avons obtenu la note de 16/20. (résultat en Février)
 
 <a name="en"/>
 
@@ -116,4 +116,4 @@ If you want to recompile the project, use the "make" command.
 
 ### Result
 
-We obtained a score of ?/20. (result in February)
+We obtained a score of 16/20. (result in February)
